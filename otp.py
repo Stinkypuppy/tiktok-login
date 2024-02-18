@@ -1,4 +1,5 @@
 from requests import Session
+import time
 
 # Create a session object to maintain cookies across requests
 session = Session()
@@ -31,19 +32,25 @@ data_get_otp = response_get_otp.json()
 otp = data_get_otp["data"]["otp"]
 print(otp, "https://tv.tiktok.com/activate")
 
-# Replace the URL with the one for checking the OTP, ensuring all version codes and region settings are consistent
-url_check_otp = f"https://api16-normal-c-useast1a.tiktokv.com/passport/mobile/check_otp/?otp={otp}&next=https%3A%2F%2Ftv.tiktok.com&client_secret=SC&account_sdk_source=app&passport-sdk-version=18&os_api=25&device_type=ASUS_Z01QD&ssmix=a&manifest_version_code=111012&dpi=240&carrier_region=US&uoo=0&region=US&app_name=tiktok_tv&version_name=11.10.12&timezone_offset=3600&ts=1680992294&ab_version=11.10.12&pass-route=1&cpu_support64=true&pass-region=1&storage_type=1&ac2=wifi&ac=wifi&app_type=normal&host_abi=armeabi-v7a&channel=googleplay&update_version_code=111012&_rticket=1680992294965&device_platform=android&iid=7219304446219192070&build_number=11.10.12&locale=de_DE&op_region=US&version_code=111012&timezone_name=America%2FNew_York&cdid=f03bebda-f46d-48ac-a48c-94c3be811ac2&openudid=d8e48a4690fded4b&sys_region=US&device_id=7191957835704632838&app_language=de&resolution=1280*720&device_brand=Asus&language=de&os_version=12.1&aid=4082&okhttp_version=4.0.71.6-tiktok"
-response_check_otp = session.get(url_check_otp, headers=headers)
+# Time to wait for OTP verification (2 minutes)
+timeout = time.time() + 120  # 2 minutes from now
+otp_verified = False
 
-# Check for the presence of session_key in the response to confirm login success
-if "session_key" in response_check_otp.text:
-    print("Login successful, fetching cookies...")
-    cookies = session.cookies.get_dict()
-    print(cookies)
-else:
-    print("Login failed or OTP expired.")
+while time.time() < timeout:
+    # Check OTP verification status
+    url_check_otp = f"https://api16-normal-c-useast1a.tiktokv.com/passport/mobile/check_otp/?otp={otp}&next=https%3A%2F%2Ftv.tiktok.com&client_secret=SC&account_sdk_source=app&passport-sdk-version=18&os_api=25&device_type=ASUS_Z01QD&ssmix=a&manifest_version_code=111012&dpi=240&carrier_region=US&uoo=0&region=US&app_name=tiktok_tv&version_name=11.10.12&timezone_offset=3600&ts=1680992294&ab_version=11.10.12&pass-route=1&cpu_support64=true&pass-region=1&storage_type=1&ac2=wifi&ac=wifi&app_type=normal&host_abi=armeabi-v7a&channel=googleplay&update_version_code=111012&_rticket=1680992294965&device_platform=android&iid=7219304446219192070&build_number=11.10.12&locale=de_DE&op_region=US&version_code=111012&timezone_name=America%2FNew_York&cdid=f03bebda-f46d-48ac-a48c-94c3be811ac2&openudid=d8e48a4690fded4b&sys_region=US&device_id=7191957835704632838&app_language=de&resolution=1280*720&device_brand=Asus&language=de&os_version=12.1&aid=4082&okhttp_version=4.0.71.6-tiktok"
+    response_check_otp = session.get(url_check_otp, headers=headers).json()
+    if response_check_otp.get("message") == "success" and response_check_otp.get("data", {}).get("status") == "expired":
+        print("OTP verification successful.")
+        otp_verified = True
+        break
+    time.sleep(5)  # wait for 5 seconds before checking again
 
-# Access the main site tiktok.com to pull all cookies
-response_tiktok = session.get("https://www.tiktok.com", headers=headers)
-cookies_main_site = session.cookies.get_dict()
-print("Cookies from tiktok.com:", cookies_main_site)
+if not otp_verified:
+    print("OTP verification failed or timed out.")
+
+if otp_verified:
+    # Access the main site tiktok.com to pull all cookies
+    response_tiktok = session.get("https://www.tiktok.com", headers=headers)
+    cookies_main_site = session.cookies.get_dict()
+    print("Cookies from tiktok.com:", cookies_main_site)
